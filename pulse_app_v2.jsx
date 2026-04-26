@@ -1,11 +1,18 @@
-import React, { useState } from 'react';
-import { Heart, MessageCircle, Share2, Search, Home, Compass, Video, Inbox, Bookmark, User, MoreHorizontal, X, Settings, Sun, Moon, Plus, FileText, Image, Store, Radio } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Heart, MessageCircle, Share2, Search, Home, Compass, Video, Inbox, Bookmark, User, MoreHorizontal, X, Settings, Sun, Moon, Plus, FileText, Image, Store, Radio, Send, Clock } from 'lucide-react';
 
 const PulseApp = () => {
   const [activeTab, setActiveTab] = useState('home');
   const [darkMode, setDarkMode] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [postMode, setPostMode] = useState(null); // 'thought', 'media', 'sell', 'live'
+  const [postText, setPostText] = useState('');
+  const [postImage, setPostImage] = useState(null);
+  const [liveActive, setLiveActive] = useState(false);
+  const [liveTitle, setLiveTitle] = useState('');
+  const [liveViewers, setLiveViewers] = useState(0);
+  const fileInputRef = useRef(null);
   const primaryRed = '#EF4444';
 
   const bgPrimary = darkMode ? '#111827' : '#FFFFFF';
@@ -38,7 +45,7 @@ const PulseApp = () => {
       avatar: 'CS',
       avatarColor: '#EF4444',
       content: 'Watch creators build their empire. 100k milestone celebration happening now live.',
-      image: true,
+      image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Crect fill="%23EF4444" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" font-size="24" fill="white" text-anchor="middle" dominant-baseline="middle"%3ECreator Content%3C/text%3E%3C/svg%3E',
       likes: 1205,
       comments: 89,
       shares: 342,
@@ -53,7 +60,7 @@ const PulseApp = () => {
       avatar: 'HN',
       avatarColor: '#EF4444',
       content: 'The midnight shift crew is on fire tonight. Workshops running until 2am 🌙',
-      image: false,
+      image: null,
       likes: 2340,
       comments: 156,
       shares: 523,
@@ -62,6 +69,25 @@ const PulseApp = () => {
       type: 'video'
     }
   ]);
+
+  const addPost = (newPost) => {
+    const post = {
+      id: Math.max(...posts.map(p => p.id), 0) + 1,
+      author: 'You',
+      handle: '@yourhandle',
+      avatar: 'YH',
+      avatarColor: primaryRed,
+      content: newPost.text || '',
+      image: newPost.image || null,
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      liked: false,
+      timestamp: 'now',
+      type: newPost.type || 'text'
+    };
+    setPosts([post, ...posts]);
+  };
 
   const toggleLike = (postId) => {
     setPosts(posts.map(post => {
@@ -77,183 +103,844 @@ const PulseApp = () => {
   };
 
   const PostModal = () => {
-    return (
-      <div style={{
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        right: '0',
-        bottom: '0',
-        background: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: '1000'
-      }}>
+    if (!postMode) {
+      return (
         <div style={{
-          background: bgPrimary,
-          borderRadius: '20px',
-          padding: '2rem',
-          width: '90%',
-          maxWidth: '500px',
-          position: 'relative'
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: '1000'
         }}>
-          <button
-            onClick={() => setShowPostModal(false)}
-            style={{
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: textSecondary
-            }}
-          >
-            <X size={24} />
-          </button>
-
-          <h2 style={{
-            margin: '0 0 2rem 0',
-            fontSize: '24px',
-            fontWeight: '700',
-            color: textPrimary
-          }}>
-            What's on your mind?
-          </h2>
-
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '1rem'
+            background: bgPrimary,
+            borderRadius: '20px',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '500px',
+            position: 'relative'
           }}>
             <button
               onClick={() => {
                 setShowPostModal(false);
-                // Handle post thought
+                setPostMode(null);
+                setPostText('');
+                setPostImage(null);
               }}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '2rem',
-                background: bgSecondary,
-                border: `1.5px solid ${primaryRed}`,
-                borderRadius: '12px',
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'transparent',
+                border: 'none',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
-                color: textPrimary
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = primaryRed;
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = bgSecondary;
-                e.currentTarget.style.color = textPrimary;
+                color: textSecondary
               }}
             >
-              <FileText size={32} color={primaryRed} />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>Post Thought</span>
+              <X size={24} />
             </button>
 
+            <h2 style={{
+              margin: '0 0 2rem 0',
+              fontSize: '24px',
+              fontWeight: '700',
+              color: textPrimary
+            }}>
+              What's on your mind?
+            </h2>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '1rem'
+            }}>
+              <button
+                onClick={() => setPostMode('thought')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '2rem',
+                  background: bgSecondary,
+                  border: `1.5px solid ${primaryRed}`,
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: textPrimary
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = primaryRed;
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = bgSecondary;
+                  e.currentTarget.style.color = textPrimary;
+                }}
+              >
+                <FileText size={32} color={primaryRed} />
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>Post Thought</span>
+              </button>
+
+              <button
+                onClick={() => setPostMode('media')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '2rem',
+                  background: bgSecondary,
+                  border: `1.5px solid ${primaryRed}`,
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: textPrimary
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = primaryRed;
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = bgSecondary;
+                  e.currentTarget.style.color = textPrimary;
+                }}
+              >
+                <Image size={32} color={primaryRed} />
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>Photo/Video</span>
+              </button>
+
+              <button
+                onClick={() => setPostMode('sell')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '2rem',
+                  background: bgSecondary,
+                  border: `1.5px solid ${primaryRed}`,
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: textPrimary
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = primaryRed;
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = bgSecondary;
+                  e.currentTarget.style.color = textPrimary;
+                }}
+              >
+                <Store size={32} color={primaryRed} />
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>Sell Something</span>
+              </button>
+
+              <button
+                onClick={() => setPostMode('live')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '2rem',
+                  background: bgSecondary,
+                  border: `1.5px solid ${primaryRed}`,
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: textPrimary
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = primaryRed;
+                  e.currentTarget.style.color = '#FFFFFF';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = bgSecondary;
+                  e.currentTarget.style.color = textPrimary;
+                }}
+              >
+                <Radio size={32} color={primaryRed} />
+                <span style={{ fontSize: '14px', fontWeight: '600' }}>Go Live</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Thought Post
+    if (postMode === 'thought') {
+      return (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: '1000'
+        }}>
+          <div style={{
+            background: bgPrimary,
+            borderRadius: '20px',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '500px',
+            position: 'relative'
+          }}>
             <button
               onClick={() => {
                 setShowPostModal(false);
-                // Handle post photo/video
+                setPostMode(null);
+                setPostText('');
               }}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '2rem',
-                background: bgSecondary,
-                border: `1.5px solid ${primaryRed}`,
-                borderRadius: '12px',
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'transparent',
+                border: 'none',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
-                color: textPrimary
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = primaryRed;
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = bgSecondary;
-                e.currentTarget.style.color = textPrimary;
+                color: textSecondary
               }}
             >
-              <Image size={32} color={primaryRed} />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>Photo/Video</span>
+              <X size={24} />
             </button>
+
+            <h2 style={{
+              margin: '0 0 1.5rem 0',
+              fontSize: '24px',
+              fontWeight: '700',
+              color: textPrimary
+            }}>
+              Share Your Thoughts
+            </h2>
+
+            <textarea
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              placeholder="What's on your mind? Share your thoughts..."
+              style={{
+                width: '100%',
+                minHeight: '150px',
+                padding: '1rem',
+                borderRadius: '12px',
+                border: `1px solid ${primaryRed}`,
+                background: bgSecondary,
+                color: textPrimary,
+                fontSize: '15px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                marginBottom: '1rem'
+              }}
+            />
 
             <button
               onClick={() => {
-                setShowPostModal(false);
-                // Handle sell something
+                if (postText.trim()) {
+                  addPost({ text: postText, type: 'text' });
+                  setShowPostModal(false);
+                  setPostMode(null);
+                  setPostText('');
+                }
               }}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '2rem',
-                background: bgSecondary,
-                border: `1.5px solid ${primaryRed}`,
+                width: '100%',
+                padding: '12px',
+                background: primaryRed,
+                color: 'white',
+                border: 'none',
                 borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'all 0.2s',
-                color: textPrimary
+                transition: 'all 0.2s'
               }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = primaryRed;
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = bgSecondary;
-                e.currentTarget.style.color = textPrimary;
-              }}
+              onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+              onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
             >
-              <Store size={32} color={primaryRed} />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>Sell Something</span>
-            </button>
-
-            <button
-              onClick={() => {
-                setShowPostModal(false);
-                // Handle go live
-              }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '2rem',
-                background: bgSecondary,
-                border: `1.5px solid ${primaryRed}`,
-                borderRadius: '12px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                color: textPrimary
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = primaryRed;
-                e.currentTarget.style.color = '#FFFFFF';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = bgSecondary;
-                e.currentTarget.style.color = textPrimary;
-              }}
-            >
-              <Radio size={32} color={primaryRed} />
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>Go Live</span>
+              Post Thought
             </button>
           </div>
         </div>
-      </div>
-    );
+      );
+    }
+
+    // Media Post
+    if (postMode === 'media') {
+      return (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: '1000'
+        }}>
+          <div style={{
+            background: bgPrimary,
+            borderRadius: '20px',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '500px',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => {
+                setShowPostModal(false);
+                setPostMode(null);
+                setPostText('');
+                setPostImage(null);
+              }}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: textSecondary
+              }}
+            >
+              <X size={24} />
+            </button>
+
+            <h2 style={{
+              margin: '0 0 1.5rem 0',
+              fontSize: '24px',
+              fontWeight: '700',
+              color: textPrimary
+            }}>
+              Share Photo or Video
+            </h2>
+
+            {!postImage ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  borderRadius: '12px',
+                  border: `2px dashed ${primaryRed}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  background: bgSecondary,
+                  marginBottom: '1rem',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = darkMode ? '#374151' : '#F0F0F0'}
+                onMouseOut={(e) => e.currentTarget.style.background = bgSecondary}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <Image size={48} color={primaryRed} style={{ margin: '0 auto 12px' }} />
+                  <p style={{ color: textSecondary, margin: '0' }}>Click to upload photo or video</p>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                <img
+                  src={postImage}
+                  alt="Preview"
+                  style={{
+                    width: '100%',
+                    borderRadius: '12px',
+                    maxHeight: '300px',
+                    objectFit: 'cover'
+                  }}
+                />
+                <button
+                  onClick={() => setPostImage(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    background: primaryRed,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            )}
+
+            <textarea
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              placeholder="Add a caption..."
+              style={{
+                width: '100%',
+                minHeight: '80px',
+                padding: '1rem',
+                borderRadius: '12px',
+                border: `1px solid ${primaryRed}`,
+                background: bgSecondary,
+                color: textPrimary,
+                fontSize: '15px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                marginBottom: '1rem'
+              }}
+            />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => setPostImage(event.target?.result);
+                  reader.readAsDataURL(file);
+                }
+              }}
+              style={{ display: 'none' }}
+            />
+
+            <button
+              onClick={() => {
+                if (postImage) {
+                  addPost({ text: postText, image: postImage, type: 'image' });
+                  setShowPostModal(false);
+                  setPostMode(null);
+                  setPostText('');
+                  setPostImage(null);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: primaryRed,
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                opacity: postImage ? 1 : 0.5
+              }}
+              disabled={!postImage}
+            >
+              Share Photo/Video
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Sell Mode
+    if (postMode === 'sell') {
+      return (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: '1000'
+        }}>
+          <div style={{
+            background: bgPrimary,
+            borderRadius: '20px',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '500px',
+            position: 'relative',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <button
+              onClick={() => {
+                setShowPostModal(false);
+                setPostMode(null);
+                setPostText('');
+                setPostImage(null);
+              }}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: textSecondary
+              }}
+            >
+              <X size={24} />
+            </button>
+
+            <h2 style={{
+              margin: '0 0 1.5rem 0',
+              fontSize: '24px',
+              fontWeight: '700',
+              color: textPrimary
+            }}>
+              List Your Product
+            </h2>
+
+            {!postImage ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: '100%',
+                  height: '150px',
+                  borderRadius: '12px',
+                  border: `2px dashed #10B981`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  background: bgSecondary,
+                  marginBottom: '1rem'
+                }}
+              >
+                <div style={{ textAlign: 'center' }}>
+                  <Image size={40} color="#10B981" style={{ margin: '0 auto 8px' }} />
+                  <p style={{ color: textSecondary, margin: '0', fontSize: '14px' }}>Click to add product image</p>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                <img
+                  src={postImage}
+                  alt="Product"
+                  style={{
+                    width: '100%',
+                    borderRadius: '12px',
+                    maxHeight: '200px',
+                    objectFit: 'cover'
+                  }}
+                />
+                <button
+                  onClick={() => setPostImage(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    background: '#10B981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            <textarea
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              placeholder="Product name and description..."
+              style={{
+                width: '100%',
+                minHeight: '100px',
+                padding: '1rem',
+                borderRadius: '12px',
+                border: `1px solid #10B981`,
+                background: bgSecondary,
+                color: textPrimary,
+                fontSize: '15px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                marginBottom: '1rem'
+              }}
+            />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => setPostImage(event.target?.result);
+                  reader.readAsDataURL(file);
+                }
+              }}
+              style={{ display: 'none' }}
+            />
+
+            <button
+              onClick={() => {
+                if (postImage && postText) {
+                  addPost({ text: postText, image: postImage, type: 'product' });
+                  setShowPostModal(false);
+                  setPostMode(null);
+                  setPostText('');
+                  setPostImage(null);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#10B981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                opacity: postImage && postText ? 1 : 0.5
+              }}
+              disabled={!postImage || !postText}
+            >
+              List Product
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Live Mode
+    if (postMode === 'live') {
+      return (
+        <div style={{
+          position: 'fixed',
+          top: '0',
+          left: '0',
+          right: '0',
+          bottom: '0',
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: '1000'
+        }}>
+          <div style={{
+            background: bgPrimary,
+            borderRadius: '20px',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '500px',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => {
+                setShowPostModal(false);
+                setPostMode(null);
+                setLiveActive(false);
+                setLiveTitle('');
+              }}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: textSecondary
+              }}
+            >
+              <X size={24} />
+            </button>
+
+            <h2 style={{
+              margin: '0 0 1.5rem 0',
+              fontSize: '24px',
+              fontWeight: '700',
+              color: textPrimary
+            }}>
+              {liveActive ? '🔴 LIVE' : 'Start a Live Stream'}
+            </h2>
+
+            {!liveActive ? (
+              <>
+                <input
+                  type="text"
+                  value={liveTitle}
+                  onChange={(e) => setLiveTitle(e.target.value)}
+                  placeholder="What are you live streaming about?"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: `1px solid ${primaryRed}`,
+                    background: bgSecondary,
+                    color: textPrimary,
+                    fontSize: '15px',
+                    boxSizing: 'border-box',
+                    marginBottom: '1rem'
+                  }}
+                />
+
+                <div style={{
+                  width: '100%',
+                  height: '250px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#999',
+                  marginBottom: '1rem',
+                  border: `1px solid ${border}`
+                }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <Video size={48} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+                    <p style={{ margin: '0' }}>Camera feed will appear here</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (liveTitle) {
+                      setLiveActive(true);
+                      setLiveViewers(Math.floor(Math.random() * 100) + 5);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: primaryRed,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: liveTitle ? 1 : 0.5
+                  }}
+                  disabled={!liveTitle}
+                >
+                  Go Live
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{
+                  width: '100%',
+                  height: '250px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  marginBottom: '1rem',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    left: '10px',
+                    background: primaryRed,
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#FFFFFF',
+                      animation: 'pulse 1s infinite'
+                    }} />
+                    LIVE
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700' }}>{liveTitle}</p>
+                    <p style={{ margin: '0', fontSize: '14px', opacity: 0.9 }}>👥 {liveViewers} watching</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    addPost({ text: `🔴 Live Stream: ${liveTitle}`, type: 'live' });
+                    setShowPostModal(false);
+                    setPostMode(null);
+                    setLiveActive(false);
+                    setLiveTitle('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: primaryRed,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    marginBottom: '0.5rem'
+                  }}
+                >
+                  Save Live Stream
+                </button>
+
+                <button
+                  onClick={() => {
+                    setLiveActive(false);
+                    setLiveTitle('');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: bgSecondary,
+                    color: textPrimary,
+                    border: `1px solid ${border}`,
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  End Stream
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
   };
 
   const SettingsModal = () => {
@@ -519,7 +1206,26 @@ const PulseApp = () => {
             </div>
 
             {/* Image/Video Placeholder */}
-            {(post.image || post.type === 'video') && (
+            {post.image && (
+              <div style={{
+                width: '100%',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                marginBottom: '12px'
+              }}>
+                <img
+                  src={post.image}
+                  alt="Post media"
+                  style={{
+                    width: '100%',
+                    maxHeight: '400px',
+                    objectFit: 'cover'
+                  }}
+                />
+              </div>
+            )}
+
+            {post.type === 'video' && !post.image && (
               <div style={{
                 width: '100%',
                 height: '300px',
@@ -531,21 +1237,20 @@ const PulseApp = () => {
                 justifyContent: 'center',
                 color: primaryRed,
                 fontSize: '14px',
-                marginBottom: '12px'
+                marginBottom: '12px',
+                borderRadius: '12px'
               }}>
-                {post.type === 'video' && (
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    background: `rgba(239, 68, 68, 0.15)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Video size={24} color={primaryRed} />
-                  </div>
-                )}
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: `rgba(239, 68, 68, 0.15)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Video size={24} color={primaryRed} />
+                </div>
               </div>
             )}
 
@@ -857,6 +1562,19 @@ const PulseApp = () => {
       fontFamily: 'var(--font-sans)',
       overflow: 'hidden'
     }}>
+      <style>{`
+        @keyframes pulse {
+          0% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+          100% {
+            opacity: 1;
+          }
+        }
+      `}</style>
       {/* Main Content */}
       <div style={{
         flex: 1,
